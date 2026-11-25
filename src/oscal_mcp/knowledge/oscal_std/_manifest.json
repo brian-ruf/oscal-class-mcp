@@ -1,0 +1,202 @@
+{
+  "collection": "oscal_std",
+  "source_repo": "usnistgov/OSCAL-Pages",
+  "source_branch": "main",
+  "source_release": "OSCAL-Pages@4818cf2d8ae2",
+  "source_ref": "4818cf2d8ae2e15deb76879239e8317eb1635881",
+  "source_commit_date": "2026-11-02T22:02:07Z",
+  "license": "Public Domain (US Gov, 17 USC 105) / CC0 1.0",
+  "attribution_file": "NIST-ATTRIBUTION.md",
+  "notes": {
+    "file": "additional_notes.md",
+    "notes_version": "1.0.0",
+    "authored": true
+  },
+  "synced": "2026-11-24T23:36:01Z",
+  "generator": "scripts/sync_knowledge.py",
+  "documents": [
+    {
+      "name": "concepts-overview",
+      "title": "OSCAL Concepts",
+      "file": "concepts-overview.md",
+      "source": "src/content/learn/concepts/_index.md",
+      "words": 229
+    },
+    {
+      "name": "layers-and-models",
+      "title": "Model Overview",
+      "file": "layers-and-models.md",
+      "source": "src/content/learn/concepts/layer/overview.md",
+      "words": 2617
+    },
+    {
+      "name": "control-layer",
+      "title": "Control Layer",
+      "file": "control-layer.md",
+      "source": "src/content/learn/concepts/layer/control/_index.md",
+      "words": 564
+    },
+    {
+      "name": "catalog",
+      "title": "OSCAL Catalog Model",
+      "file": "catalog.md",
+      "source": "src/content/learn/concepts/layer/control/catalog/_index.md",
+      "words": 796
+    },
+    {
+      "name": "profile",
+      "title": "OSCAL Profile Model",
+      "file": "profile.md",
+      "source": "src/content/learn/concepts/layer/control/profile/_index.md",
+      "words": 754
+    },
+    {
+      "name": "mapping",
+      "title": "OSCAL Control Mapping Model",
+      "file": "mapping.md",
+      "source": "src/content/learn/concepts/layer/control/mapping/_index.md",
+      "words": 1042
+    },
+    {
+      "name": "implementation-layer",
+      "title": "Implementation Layer",
+      "file": "implementation-layer.md",
+      "source": "src/content/learn/concepts/layer/implementation/_index.md",
+      "words": 293
+    },
+    {
+      "name": "component-definition",
+      "title": "Component Definition Model",
+      "file": "component-definition.md",
+      "source": "src/content/learn/concepts/layer/implementation/component-definition/_index.md",
+      "words": 866
+    },
+    {
+      "name": "ssp",
+      "title": "System Security Plan Model (SSP)",
+      "file": "ssp.md",
+      "source": "src/content/learn/concepts/layer/implementation/ssp/_index.md",
+      "words": 1498
+    },
+    {
+      "name": "assessment-layer",
+      "title": "Assessment Layer",
+      "file": "assessment-layer.md",
+      "source": "src/content/learn/concepts/layer/assessment/_index.md",
+      "words": 169
+    },
+    {
+      "name": "assessment-plan",
+      "title": "Assessment Plan Model",
+      "file": "assessment-plan.md",
+      "source": "src/content/learn/concepts/layer/assessment/assessment-plan/_index.md",
+      "words": 714
+    },
+    {
+      "name": "assessment-results",
+      "title": "Assessment Results Model",
+      "file": "assessment-results.md",
+      "source": "src/content/learn/concepts/layer/assessment/assessment-results/_index.md",
+      "words": 797
+    },
+    {
+      "name": "poam",
+      "title": "Plan of Action and Milestones Model",
+      "file": "poam.md",
+      "source": "src/content/learn/concepts/layer/assessment/poam/_index.md",
+      "words": 629
+    },
+    {
+      "name": "terminology",
+      "title": "Key Concepts and Terms Used in OSCAL",
+      "file": "terminology.md",
+      "source": "src/content/learn/concepts/terminology/_index.md",
+      "words": 903
+    },
+    {
+      "name": "identifier-use",
+      "title": "Identifier Use and UUIDs",
+      "file": "identifier-use.md",
+      "source": "src/content/learn/concepts/identifier-use/_index.md",
+      "words": 1491
+    },
+    {
+      "name": "uri-use",
+      "title": "URI Usage",
+      "file": "uri-use.md",
+      "source": "src/content/learn/concepts/uri-use.md",
+      "words": 1346
+    },
+    {
+      "name": "processing",
+      "title": "Processing Specifications",
+      "file": "processing.md",
+      "source": "src/content/learn/concepts/processing/_index.md",
+      "words": 133
+    },
+    {
+      "name": "validation",
+      "title": "Well-formed Data Formats and Valid OSCAL",
+      "file": "validation.md",
+      "source": "src/content/learn/concepts/validation/_index.md",
+      "words": 831
+    },
+    {
+      "name": "relations-to-other-standards",
+      "title": "Relations to Other Documentary Encoding Standards",
+      "file": "relations-to-other-standards.md",
+      "source": "src/content/learn/concepts/relations-to-other.md",
+      "words": 892
+    },
+    {
+      "name": "tutorial-catalog",
+      "title": "Creating a Control Catalog",
+      "file": "tutorial-catalog.md",
+      "source": "src/content/learn/tutorials/control/basic-catalog.md",
+      "words": 10062
+    },
+    {
+      "name": "tutorial-profile",
+      "title": "Creating a Profile",
+      "file": "tutorial-profile.md",
+      "source": "src/content/learn/tutorials/control/basic-profile.md",
+      "words": 7558
+    },
+    {
+      "name": "tutorial-metadata",
+      "title": "Creating and Using Metadata",
+      "file": "tutorial-metadata.md",
+      "source": "src/content/learn/tutorials/general/metadata.md",
+      "words": 5384
+    },
+    {
+      "name": "tutorial-extension",
+      "title": "Extending OSCAL Models",
+      "file": "tutorial-extension.md",
+      "source": "src/content/learn/tutorials/general/extension.md",
+      "words": 5002
+    },
+    {
+      "name": "tutorial-component-definition",
+      "title": "Creating a Component Definition",
+      "file": "tutorial-component-definition.md",
+      "source": "src/content/learn/tutorials/implementation/simple-component-definition.md",
+      "words": 4957
+    },
+    {
+      "name": "tutorial-validation-modeling",
+      "title": "Representing Test Validation Information",
+      "file": "tutorial-validation-modeling.md",
+      "source": "src/content/learn/tutorials/implementation/validation-modeling.md",
+      "words": 568
+    },
+    {
+      "name": "additional-notes",
+      "title": "Additional Notes \u2014 Expert Enhancements (authored, not NIST)",
+      "file": "additional_notes.md",
+      "authored": true,
+      "notes_version": "1.0.0",
+      "words": 390
+    }
+  ]
+}

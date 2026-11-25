@@ -1,0 +1,25 @@
+# OSCAL support database (bundled DB auto-extracts; never commit the working copy)
+support/
+*.db
+
+# Virtual environments (.venv = Linux, venv = Windows)
+.venv/
+venv/
+
+# Python build / cache artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Editor / OS
+.DS_Store

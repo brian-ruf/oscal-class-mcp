@@ -1,0 +1,129 @@
+{
+  "collection": "oscal_lib",
+  "source_repo": "brian-ruf/oscal-class",
+  "source_release": "v4.3.0",
+  "synced": "2026-11-24T21:23:30Z",
+  "generator": "scripts/sync_knowledge.py",
+  "documents": [
+    {
+      "name": "overview",
+      "title": "OSCAL Library Overview",
+      "file": "overview.md",
+      "source": "docs/OVERVIEW.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 321
+    },
+    {
+      "name": "conops",
+      "title": "Concept of Operations (ConOps)",
+      "file": "conops.md",
+      "source": "docs/CONOPS.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 745
+    },
+    {
+      "name": "getting-started",
+      "title": "Getting Started",
+      "file": "getting-started.md",
+      "source": "docs/GETTING_STARTED.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 988
+    },
+    {
+      "name": "content",
+      "title": "OSCAL Class",
+      "file": "content.md",
+      "source": "docs/CONTENT.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 3106
+    },
+    {
+      "name": "validation",
+      "title": "Tiered Validation",
+      "file": "validation.md",
+      "source": "docs/VALIDATION.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 1690
+    },
+    {
+      "name": "imports",
+      "title": "Import Resolution",
+      "file": "imports.md",
+      "source": "docs/IMPORTS.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 1751
+    },
+    {
+      "name": "import-selection-api",
+      "title": "Profile import-selection API \u2014 reference",
+      "file": "import-selection-api.md",
+      "source": "docs/IMPORT_SELECTION_API.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 780
+    },
+    {
+      "name": "importing-controls",
+      "title": "Importing Controls",
+      "file": "importing-controls.md",
+      "source": "docs/IMPORTING_CONTROLS.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 325
+    },
+    {
+      "name": "profile-processing",
+      "title": "Profile Processing",
+      "file": "profile-processing.md",
+      "source": "docs/PROFILE_PROCESSING.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 2272
+    },
+    {
+      "name": "query-content",
+      "title": "Querying OSCAL Content",
+      "file": "query-content.md",
+      "source": "docs/QUERY_CONTENT.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 1295
+    },
+    {
+      "name": "converters",
+      "title": "OSCAL Format Converters",
+      "file": "converters.md",
+      "source": "docs/CONVERTERS.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 749
+    },
+    {
+      "name": "support-module",
+      "title": "The OSCAL Support Module",
+      "file": "support-module.md",
+      "source": "docs/SUPPORT_MODULE.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 1769
+    },
+    {
+      "name": "shared-mode",
+      "title": "Shared Mode (multi-process / multi-user workspaces)",
+      "file": "shared-mode.md",
+      "source": "docs/SHARED_MODE.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 1126
+    },
+    {
+      "name": "method-patterns",
+      "title": "Patterns getters must follow in this library",
+      "file": "method-patterns.md",
+      "source": "docs/METHOD_PATTERNS.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 351
+    },
+    {
+      "name": "logging",
+      "title": "Logging in `oscal`",
+      "file": "logging.md",
+      "source": "docs/LOGGING.md",
+      "source_ref": "local:/work/rr/class",
+      "words": 691
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "oscal-mcp"
+version = "1.1.0"
+description = "MCP Server that wraps the oscal Python library to enable an Agentic AI to validate, convert, query and mutate OSCAL content."
+requires-python = ">=3.9"
+authors = [{ name = "Brian Ruf", email = "Brian@RufRisk.com" }]
+readme = "README.md"
+license = "MIT"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: OS Independent",
+]
+keywords = ["oscal", "nist", "security", "compliance", "automation", "ssp", "fedramp", "csf"]
+
+# The server imports only these three directly. OSCAL-side needs (jsonpath-python,
+# markdown, xmlschema, …) are declared by `oscal` and come in transitively.
+dependencies = [
+    "oscal           >= 4.3.0, < 5",
+    "fastmcp         >= 2.0.0",
+    "platformdirs    >= 3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/brian-ruf/oscal-class-mcp"
+Repository = "https://github.com/brian-ruf/oscal-class-mcp.git"
+Documentation = "https://github.com/brian-ruf/oscal-class-mcp#readme"
+Issues = "https://github.com/brian-ruf/oscal-class-mcp/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest >= 8.0",
+    "pytest-cov",
+    "pytest-asyncio",
+    "hypothesis",
+    "ruff",
+]
+
+[project.scripts]
+oscal-mcp = "oscal_mcp.server:main"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+# FA102 guards the py39 target: it flags PEP 604 (`X | Y`) unions used in
+# annotations without `from __future__ import annotations`, which raise at runtime
+# on Python 3.9.
+select = ["E", "F", "W", "FA102"]
+ignore = ["W291", "W293", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["oscal_mcp*"]
+
+[tool.setuptools.package-data]
+oscal_mcp = ["py.typed", "recipes/*.md", "knowledge/*/*.md", "knowledge/*/_manifest.json"]

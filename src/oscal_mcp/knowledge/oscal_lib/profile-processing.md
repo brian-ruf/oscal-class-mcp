@@ -1,0 +1,365 @@
+# Profile Processing
+
+An OSCAL **profile** selects and tailors controls from one or more imported catalogs
+and/or profiles into a new baseline or overlay. Resolving a profile applies its
+processing directives — which controls are in scope, how they are organized, and how
+their parameters and content are modified — to produce a single **resolved catalog**.
+
+This library processes profiles in two phases so you only expend processing for what you use:
+
+1. **`controls_tree` (built at load, cheap).** A lightweight tree of the in-scope
+   groups and controls — ids, hierarchy, and each node's origin — with the profile's
+   `import` / `include` / `exclude` / `merge` / `combine` directives already applied.
+   This is the source of truth for *scope and organization*. 
+     - No control content is copied.
+     - Profile alterations are applied to individual controls as they are feteched. 
+     - Built when the profile is **minimally valid** (structurally sound) and its imports
+       resolve — full OSCAL validity is not required. See [Tiered Validation](oscal-lib://concepts/validation).
+2. **`resolve()` (on demand, heavy).** Walks the `controls_tree`, fetches the real
+   content for each node, applies `modify` (removes → adds → set-parameters), and
+   materializes a brand-new `Catalog` in `profile.catalog`.
+
+Because the `controls_tree` is always available, you can read individual controls and
+groups **without resolving the whole profile** (just-in-time), or resolve once and work
+with the full `Catalog`.
+
+Each imported profile is represented by its own Profile object. Each Profile object handles its own control import and alterations processing, and makes the result available to downstream imports, ensuring complex import trees are handled cleanly. 
+
+All processing follows the NIST
+[OSCAL Profile Resolution](https://pages.nist.gov/OSCAL/learn/concepts/processing/profile-resolution/)
+specification.
+
+---
+
+## At a glance
+
+| Method | Returns | Needs `resolve()` first? |
+| --- | --- | --- |
+| `get_control_by_id(id, depth=None)` | control `dict` \| `None` | No — materialized just-in-time |
+| `get_group_by_id(id, depth=None)` | group `dict` \| `None` | No — materialized just-in-time |
+| `get_control_list()` | `list[dict]` | No — materialized just-in-time |
+| `get_parameter_by_id(id)` | param `dict` \| `None` | No — materialized just-in-time |
+| `get_import_selection(href)` | selection `dict` \| `None` | No — reads the import statement |
+| `set_import_selection(href, ...)` | rewritten import `dict` \| `None` | No — edits scope |
+| `get_directives()` | `{"combine","hierarchy"[,"custom"]}` | No — reads the merge directives |
+| `set_directives(combine=, hierarchy=, custom=)` | `bool` | No — edits organization |
+| `set_parameter(param_id, …)` | `set-parameter` `dict` \| `None` | No — upserts a modify set-parameter |
+| `add_alter(control_id)` | `alter` `dict` \| `None` | No — ensures a modify alter |
+| `add_alter_adds` / `add_alter_removes` | addition/removal `dict` \| `None` | No — appends to an alter |
+| `remove_alter_adds` / `remove_alter_removes` | `bool` | No — selector-matched delete + cleanup |
+| `get_set_parameter(param_id)` / `get_alter(control_id)` | `dict` \| `None` | No — safe-copy read |
+| `remove_set_parameter(param_id)` | `bool` | No — deletes a set-parameter + cleanup |
+| `resolve()` | `ResolutionStatus` | — builds `profile.catalog` |
+| `catalog` (attribute) | `Catalog` \| `None` | `None` until `resolve()` |
+| `dumps_catalog(format, pretty_print)` | `str` | Yes |
+| `dump_catalog(filename, format, pretty_print)` | `bool` | Yes |
+| `resolve_and_dumps_catalog(format, pretty_print)` | `str` | resolves for you |
+| `resolve_and_dump_catalog(filename, format, pretty_print)` | `bool` | resolves for you |
+
+---
+
+## Loading a profile
+
+```python
+from oscal import OSCAL, Profile
+
+# OSCAL.load() returns a typed instance (a Profile for a profile document)
+profile = OSCAL.load("high-baseline-privacy-profile.json")
+
+# ...or load as the specific model
+profile = Profile.load("high-baseline-privacy-profile.json")
+
+profile.resolution_status  # ResolutionStatus.UNRESOLVED
+profile.catalog  # None — not resolved yet
+len(profile.controls_tree)  # the in-scope top-level groups/controls
+```
+
+Loading builds the `controls_tree` (applying the profile's scope and merge directives)
+but does **not** resolve to a catalog.
+
+---
+
+## Any number or depth of imports (profiles and catalogs)
+
+A profile may import catalogs, other profiles, or a mix — to any depth. The library
+resolves the whole import graph automatically; you do **not** need to pre-resolve
+imported profiles. Each imported profile contributes its own load-time `controls_tree`,
+and content is fetched through each source's own accessors, recursing to the underlying
+catalogs.
+
+```
+combined-profile.json           (imports two profiles)
+├── baseline-profile.json       (imports a catalog + an overlay catalog)
+│   ├── base-catalog.json
+│   └── overlay-catalog.json
+└── overlay-profile.json        (imports the same catalog + overlay catalog)
+    ├── base-catalog.json
+    └── overlay-catalog.json
+```
+
+```python
+top = OSCAL.load("combined-profile.json")
+
+# The full chain is already reflected in the scope — no manual pre-resolution needed.
+ids = {c["id"] for c in top.get_control_list()}
+```
+
+Duplicate control references across imports are handled by the profile's `combine`
+directive:
+
+- **`use-first`** — the first occurrence is kept; later identical duplicates are dropped.
+  A *new* enhancement of a duplicated parent control is still kept (merged under the kept
+  parent), and same-id groups are merged into a single group.
+- **`keep`** — later duplicates are retained with a `__<uuid>`-suffixed id.
+
+Import-related notes:
+
+- If two different documents share a root **UUID** (a common hand-authoring mistake),
+  the library detects it — comparing `title` / `oscal-version` / `last-modified` /
+  `version` — and reassigns the later one a fresh UUID to continue, with a warning. Fix
+  the source content to use unique UUIDs.
+- An unreachable import blocks resolution; `resolve()` returns
+  `ResolutionStatus.BLOCKED`.
+
+---
+
+## Just-in-time (JIT) access
+
+You can read individual controls and groups straight from an **unresolved** profile.
+The library materializes just the requested content on demand from the source (applying
+this profile's `modify` directives), without building the whole catalog.
+
+```python
+profile = OSCAL.load("high-baseline-privacy-profile.json")
+assert profile.catalog is None  # still unresolved
+
+ac_1 = profile.get_control_by_id("ac-1")  # materialized on demand, fully tailored
+ac_1["id"]  # "ac-1"
+
+assert profile.catalog is None  # a JIT read did NOT trigger a full resolve
+```
+
+JIT is ideal for browsing, previewing, or pulling a handful of controls (e.g. building a
+navigation UI, or importing a few controls into an SSP) without the cost of a full
+resolution. The returned dict is a **detached safe copy** — mutating it does not change
+the profile.
+
+---
+
+## Full resolution to a catalog
+
+When you need the complete tailored catalog, call `resolve()`. It builds a fresh
+`Catalog` in `profile.catalog` and returns a status.
+
+```python
+from oscal.oscal_controls import ResolutionStatus
+
+status = profile.resolve()
+if status == ResolutionStatus.RESOLVED:
+    catalog = profile.catalog  # a fully-resolved Catalog instance
+    print(len(catalog), "controls")
+    print(catalog.is_valid)
+elif status == ResolutionStatus.BLOCKED:
+    print("An import could not be resolved.")
+```
+
+`resolve()` always rebuilds `profile.catalog` from scratch. Resolve once and reuse
+`profile.catalog` (or the profile's getters) for many reads.
+
+### Serializing the resolved catalog
+
+```python
+# Serialize to a string / file (require the profile to be resolved first)
+profile.resolve()
+json_text = profile.dumps_catalog(format="json", pretty_print=True)
+profile.dump_catalog(filename="resolved-catalog.json", format="json")
+
+# One-shot: resolve then serialize in a single call
+json_text = profile.resolve_and_dumps_catalog(format="json", pretty_print=True)
+profile.resolve_and_dump_catalog(filename="resolved-catalog.xml", format="xml")
+```
+
+Use `resolve_and_dump*` for the common one-shot case. Use `resolve()` +
+`dump_catalog` / `dumps_catalog` when you want finer control — for example to resolve
+once and write several formats, or to control *when* the heavy resolution runs. The
+pure `dump*` methods never resolve on their own; if the profile is unresolved they warn
+and return an empty string / `False`.
+
+---
+
+## Acquire groups and controls just like a Catalog
+
+A resolved-or-not profile exposes the same read accessors as a `Catalog`, with identical
+signatures and return shapes — so code that navigates a catalog works unchanged against
+a profile.
+
+```python
+def summarize(source):
+    """Works for both a Catalog and a Profile."""
+    ac = source.get_group_by_id("ac")  # the Access Control family
+    ac_1 = source.get_control_by_id("ac-1")  # a single control (safe copy)
+    ac_1_shallow = source.get_control_by_id("ac-1", depth=0)  # without enhancements
+    every = source.get_control_list()  # flat list of all controls
+    return ac, ac_1, ac_1_shallow, every
+
+
+summarize(Catalog.load("nist-800-53.json"))
+summarize(Profile.load("high-baseline-privacy-profile.json"))  # same calls, same shapes
+```
+
+- `get_control_by_id(id, depth=None)` — a control as a detached copy. `depth` prunes only
+  nested enhancements (`None` = full subtree, `0` = none, `N` = N levels).
+- `get_group_by_id(id, depth=None)` — a group as a detached copy. `depth` prunes only
+  nested groups/controls.
+- `get_control_list()` — a flat list of every control (enhancements included).
+- `get_parameter_by_id(id)` — a parameter, wherever it is defined in scope.
+
+When the profile is **resolved**, these read from `profile.catalog`. When it is
+**unresolved**, they materialize the same result on demand from the source — so the two
+paths agree. Because they return safe copies, edits are made through the profile's
+directive methods (below) and re-resolved, not by mutating a returned dict.
+
+---
+
+## Changing scope and directives
+
+Scope and organization come from the profile's own directives. After changing them, the
+`controls_tree` rebuilds automatically; call `resolve()` again for a fresh catalog.
+
+```python
+profile = Profile.new("My Baseline")
+profile.set_metadata({"title": "My Baseline"})
+
+# Add imports (each backed by a back-matter resource)
+profile.add_import("nist-800-53.json", include_all=True)
+
+# Choose how imported controls are organized (combine + hierarchy, set independently):
+profile.set_directives(hierarchy="as-is", combine="use-first")  # preserve source grouping
+# profile.set_directives(hierarchy="flat")                      # flatten (no groups)
+# profile.set_directives(combine="keep")                        # change only combine
+
+controls = profile.get_control_list()  # reflects the new scope immediately (JIT)
+profile.resolve()  # (re)build profile.catalog
+```
+
+Directive summary:
+
+- **`import` / `include-controls` / `exclude-controls`** — which controls are in scope
+  (`with-ids`, `matching` glob patterns, `with-child-controls`). Read/replace the
+  selection for one import with `get_import_selection(href)` /
+  `set_import_selection(href, ...)` (see below).
+- **`merge`** — organization. Read and write the directives with `get_directives()` /
+  `set_directives(combine=, hierarchy=, custom=)`:
+  - `hierarchy` — `flat` (no groups), `as-is` (preserve grouping), or `custom`. `custom`
+    grouping is not yet applied during resolution and falls back to `as-is`, but the
+    directive is stored and validated.
+  - `combine` — duplicate handling: `use-first` or `keep`.
+
+  `get_directives()` returns a normalized `{"combine", "hierarchy"[, "custom"]}` dict;
+  `set_directives()` edits each independently, validates `custom` through the metaschema
+  staging gate, and commits only a valid result (rolls back otherwise). The hierarchy in
+  force is also mirrored on the `profile.merge_directive` attribute. The older
+  `set_merge()` / `set_merge_directive()` pass-throughs are **deprecated** in favor of
+  `set_directives()`.
+- **`modify`** — per-control tailoring: `alters` (removes → adds) and `set-parameters`,
+  applied during resolution and JIT reads alike. Author them with `set_parameter(...)` and
+  the alter methods (see below).
+
+### Editing one import's control selection
+
+`get_import_selection(href)` returns a safe copy of just the `include-all` /
+`include-controls` / `exclude-controls` structures of a single import; only keys actually
+present are returned (`None` if no import matches). The `href` may be any form tracked for
+the import — the authored `href`, a resolved location, or a back-matter `#uuid` fragment.
+
+`set_import_selection(href, include_all=..., include_controls=..., exclude_controls=...)`
+replaces those structures wholesale. An argument left as `None` is omitted from the
+rewritten import; pass an empty list to keep a key present but empty. The replacement is
+validated against the metaschema before it is written — `include-all` and
+`include-controls` are mutually exclusive and exactly one must be present — and on success
+the `controls_tree` is rebuilt and any resolved catalog is dropped, since scope changed.
+
+```python
+# Narrow an import to two controls, excluding one enhancement:
+profile.set_import_selection(
+    "nist-800-53.json",
+    include_controls=[{"with-ids": ["ac-1", "ac-2"]}],
+    exclude_controls=[{"with-ids": ["ac-2.1"]}],
+)
+sel = profile.get_import_selection("nist-800-53.json")
+# {"include-controls": [{"with-ids": ["ac-1", "ac-2"]}],
+#  "exclude-controls": [{"with-ids": ["ac-2.1"]}]}
+```
+
+### Authoring `modify` directives (set-parameters and alters)
+
+`modify` tailoring is authored with dedicated methods; each builds the structure and
+validates it through the metaschema staging gate (unknown keys dropped, invalid content
+rejected with no change), returns a safe copy, and marks the profile unsaved.
+
+- **`set_parameter(param_id, class_=, props=, links=, label=, usage=, constraints=,
+  guidelines=, values=, select_cardinality=, select_choices=)`** — upsert a
+  `set-parameters` entry. Missing when absent → created; when present → each supplied field
+  overwrites and omitted fields are left untouched (per-field merge). `values` and the
+  `select_*` form are the OSCAL mutually-exclusive choice (supplying both is rejected;
+  supplying one clears the other). Most often used to set a `value` or a `constraint`.
+- **`add_alter(control_id)`** — ensure an (initially empty) alter exists; idempotent.
+- **`add_alter_adds(control_id, position=, by_id=, title=, params=, props=, links=,
+  parts=)`** — append an addition (needs at least one content field); creates the alter if
+  needed.
+- **`add_alter_removes(control_id, by_name=, by_class=, by_id=, by_item_name=, by_ns=)`** —
+  append a removal (needs at least one selector); creates the alter if needed.
+- **`remove_alter_adds(control_id, by_id, position=)`** — delete additions whose supplied
+  selectors all match (`by_id` required). **`remove_alter_removes(control_id, by_name=,
+  by_class=, by_id=, by_item_name=, by_ns=)`** — delete removals whose supplied selectors
+  all match (none supplied → all). Both prune emptied `adds`/`removes`, an alter left with
+  only its `control-id`, an emptied `alters`, and an emptied `modify`.
+- **`get_set_parameter(param_id)`** / **`get_alter(control_id)`** — safe-copy reads of a
+  single set-parameter / alter (`None` if absent). **`remove_set_parameter(param_id)`** —
+  delete a set-parameter, pruning an emptied `set-parameters` and `modify`.
+
+```python
+profile.set_parameter("ac-1_prm_1", values=["daily"])  # set a value
+profile.add_alter_adds(
+    "ac-1", by_id="ac-1_smt", position="after", parts=[{"id": "ac-1_gd", "name": "guidance", "prose": "…"}]
+)
+profile.add_alter_removes("ac-1", by_name="label")
+```
+
+### `merge_directive` vs `MergeStrategy` (as-is only)
+
+Do not confuse the OSCAL **merge directive** with the library's `MergeStrategy`:
+
+- `profile.merge_directive` — the OSCAL directive authored on the profile
+  (`"as-is"` / `"flat"` / `"custom"`); it *is* serialized content.
+- `profile.merge_strategy` (a `MergeStrategy`) — a library-only, non-serialized option
+  that refines **how `as-is` reconstructs control hierarchy** (`REFERENTIAL`, the default,
+  vs `POSITIONAL`). It **applies only when `merge_directive == "as-is"`**; under `flat`
+  (no nesting) or `custom` (own structure) it is inert. `REFERENTIAL` reconstructs
+  control→control containment from source provenance (so a selected enhancement nests
+  under its selected parent even across import branches); `POSITIONAL` keeps each import's
+  presented structure. See the `MergeStrategy` docstring for details.
+
+---
+
+## Resolution status
+
+`profile.resolution_status` is a `ResolutionStatus`:
+
+| Value | Meaning |
+| --- | --- |
+| `UNRESOLVED` | Loaded; `controls_tree` built, `catalog` is `None`. |
+| `RESOLVING` | Resolution in progress. |
+| `RESOLVED` | `profile.catalog` is populated. |
+| `BLOCKED` | Resolution could not complete (e.g. an import is unreachable). |
+
+---
+
+## Notes and current limitations
+
+- **`resolve()` fully rebuilds** the resolved catalog each call. Content-based
+  change-detection (skip re-resolution when nothing changed) is planned alongside the
+  library-wide caching/TTL work; see `docs/ROADMAP.md`.
+- **`custom` merge** is deferred (falls back to `as-is`).
+- **Out-of-scope cross-references** (a control referencing another control not in the
+  baseline) are rewritten to absolute source URIs, matching the reference resolver.

@@ -1,0 +1,95 @@
+name: Release
+
+# Mirrors the oscal-class "Release" workflow. Triggered by pushing a version tag (vX.Y.Z):
+# builds the sdist+wheel and creates the immutable GitHub Release with them attached. It
+# does NOT publish to PyPI -- that is the separate, manually dispatched, re-runnable
+# pypi.yml, which uploads the exact assets attached here.
+#
+# Immutable releases freeze assets at publish time, so the release is assembled as a draft
+# (mutable) and only sealed (published) once all assets are attached. Sealing consumes the
+# tag; if the build fails, the tag stays reusable.
+#
+# Release flow for a maintainer: bump [project].version in pyproject.toml, refresh bundled
+# knowledge if needed (scripts/sync_knowledge.py), merge to main, then:
+#   git tag vX.Y.Z && git push origin vX.Y.Z
+# (Do not create the GitHub Release by hand.) Fallback: dispatch manually against an
+# EXISTING tag via the Actions tab or `gh workflow run publish.yml -f tag=vX.Y.Z`.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to build the Release for (e.g. v1.1.0). The tag must already exist on the remote."
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify tag matches package version
+        run: |
+          PKG=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_bytes().decode())['project']['version'])")
+          TAG="${RELEASE_TAG#v}"
+          echo "release tag = $TAG   package version = $PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Release tag ($RELEASE_TAG) does not match pyproject.toml ($PKG). Bump [project].version or fix the tag."
+            exit 1
+          fi
+
+      - name: Check bundled NIST content freshness (non-blocking)
+        run: |
+          python scripts/sync_knowledge.py oscal-std --check || \
+            echo "::warning::Bundled NIST OSCAL content may trail upstream; consider re-running 'scripts/sync_knowledge.py oscal-std' before release."
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  github-release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create immutable release with artifacts attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${RELEASE_TAG}"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
+            --title "$TAG" --generate-notes
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" dist/*
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
